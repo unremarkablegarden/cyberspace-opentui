@@ -1,4 +1,6 @@
-# cyberspace-opentui
+![TUI](https://raw.githubusercontent.com/unremarkablegarden/cyberspace-opentui/refs/heads/main/tui.png)
+
+# Cyberspace OpenTUI
 
 Terminal client for [Cyberspace](https://cyberspace.online). 
 A two-pane, Norton-Commander-inspired reader built on [OpenTUI](https://github.com/anomalyco/opentui) and Bun.
