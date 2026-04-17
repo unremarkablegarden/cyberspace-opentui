@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Bun
+.bun/
+bun.lockb
+
+# Build output
+dist/
+build/
+out/
+coverage/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# Cache / temp
+.cache/
+tmp/
+temp/
+
+# Editor / OS junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# OpenTUI local state
+.opentui/
+opentui.db
+*.session
+
+# Test artifacts
+junit.xml
+
+.claude
+CLAUDE.md
+
+examples
+references
+
+bun.lock
