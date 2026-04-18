@@ -24,7 +24,7 @@ export interface ProfileViewHandle {
 
 const SHORTCUTS: Shortcut[] = [
   { key: "↑↓", label: "NAV" },
-  { key: "Q", label: "QUIT" },
+  { key: "⌃Q", label: "QUIT" },
 ];
 
 function formatAge(d: Date): string {

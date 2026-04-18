@@ -199,7 +199,7 @@ reader.onOpenAuthor(async (row) => {
 });
 
 renderer.keyInput.on("keypress", (key) => {
-  if (key.name === "q") {
+  if (key.ctrl && key.name === "q") {
     renderer.destroy();
     process.exit(0);
   }

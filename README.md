@@ -35,7 +35,7 @@ Keys:
 
 | Context | Keys |
 |---------|------|
-| Anywhere | `⌃R` Reader · `⌃P` Profile · `Q` quit |
+| Anywhere | `⌃R` Reader · `⌃P` Profile · `⌃Q` quit |
 | Login | Tab switches field · Enter advances / submits · Esc quits |
 | Reader — list focused | `↑ ↓` navigate · `→` or Tab switches to detail · `U` open author · `[ ]` resize |
 | Reader — detail focused | `↑ ↓` navigate cards · `j k` scroll · `←` or Tab switches to list |

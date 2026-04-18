@@ -28,7 +28,7 @@ const LIST_SHORTCUTS: Shortcut[] = [
   { key: "↔", label: "PANEL" },
   { key: "U", label: "AUTHOR" },
   { key: "[ ]", label: "RESIZE" },
-  { key: "Q", label: "QUIT" },
+  { key: "⌃Q", label: "QUIT" },
 ];
 
 const DETAIL_SHORTCUTS: Shortcut[] = [
@@ -36,7 +36,7 @@ const DETAIL_SHORTCUTS: Shortcut[] = [
   { key: "j k", label: "SCROLL" },
   { key: "↔", label: "PANEL" },
   { key: "[ ]", label: "RESIZE" },
-  { key: "Q", label: "QUIT" },
+  { key: "⌃Q", label: "QUIT" },
 ];
 
 const MIN_LEFT_PCT = 20;
