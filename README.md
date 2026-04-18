@@ -27,7 +27,7 @@ bun install
 bun dev
 ```
 
-Note: You need [API](https://api.cyberspace.online/docs) access enabled on your [Cyberspace](https://cyberspace.online/) account to use it. While this is in beta you need to request it from [@genghis_khan](https://cyberspace.online/genghis_khan). 
+Note: You need [API](https://api.cyberspace.online/docs) access enabled on your [Cyberspace](https://cyberspace.online/) account to use it. While this is in beta you need to request it from [@genghis_khan](https://cyberspace.online/genghis_khan), or you need to be a [supporter](http://cyberspace.online/support).
 
 First launch shows the sign-in card. Successful login stores your tokens locally; subsequent launches drop you straight into the reader.
 
