@@ -13,6 +13,7 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
-    "@opentui/core": "^0.1.97"
+    "@opentui/core": "^0.1.97",
+    "web-tree-sitter": "0.25.10"
   }
 }

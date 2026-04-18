@@ -1,17 +1,37 @@
 import {
   BoxRenderable,
+  MarkdownRenderable,
+  parseColor,
   ScrollBoxRenderable,
+  SyntaxStyle,
   TextRenderable,
   type CliRenderer,
   type Renderable,
 } from "@opentui/core";
 import { theme } from "../../theme.ts";
 
+const postSyntaxStyle = SyntaxStyle.fromStyles({
+  default: { fg: parseColor(theme.fg) },
+  "markup.heading": { fg: parseColor(theme.accent), bold: true },
+  "markup.heading.1": { fg: parseColor(theme.accent), bold: true, underline: true },
+  "markup.strong": { fg: parseColor(theme.fg), bold: true },
+  "markup.italic": { fg: parseColor(theme.fg), italic: true },
+  "markup.link": { fg: parseColor(theme.accent), underline: true },
+  "markup.link.label": { fg: parseColor(theme.accent), underline: true },
+  "markup.link.url": { fg: parseColor(theme.accent), underline: true },
+  "markup.raw": { fg: parseColor(theme.fg), bg: parseColor(theme.chipBg) },
+  "markup.raw.inline": { fg: parseColor(theme.fg), bg: parseColor(theme.chipBg) },
+  "markup.list": { fg: parseColor(theme.accent) },
+  "markup.quote": { fg: parseColor(theme.fgDim), italic: true },
+  conceal: { fg: parseColor(theme.fgDim) },
+});
+
 export interface PostDetailModel {
   author: string;
   content: string;
   createdAt: Date;
   repliesCount: number;
+  topics?: string[];
 }
 
 export interface ReplyModel {
@@ -33,6 +53,7 @@ export interface PostDetailHandle {
   blur(): void;
   focusNext(): void;
   focusPrev(): void;
+  scrollBy(delta: number): void;
 }
 
 function formatAge(d: Date): string {
@@ -46,6 +67,16 @@ function formatAge(d: Date): string {
   if (h < 24) return `${h}h`;
   const dd = Math.floor(h / 24);
   return `${dd}d`;
+}
+
+function cleanMarkdown(content: string): string {
+  return content
+    .replace(/^[ \t]*&nbsp;[ \t]*$/gm, "")
+    .replace(/^[ \t]*\u00A0[ \t]*$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, text, url) =>
+      text === url ? `<${url}>` : m,
+    );
 }
 
 function wordCount(str: string): number {
@@ -145,7 +176,7 @@ export function createPostDetail(renderer: CliRenderer): PostDetailHandle {
   function buildPostTitle(post: PostDetailModel): string {
     const words = wordCount(post.content);
     const age = formatAge(post.createdAt);
-    return `${post.author.toUpperCase()}  —  ${words} words — ${post.repliesCount} replies — ${age}`;
+    return ` ${post.author.toUpperCase()} / ${words} words / ${post.repliesCount} replies / ${age} `;
   }
 
   function setPost(post: PostDetailModel | null): void {
@@ -176,41 +207,85 @@ export function createPostDetail(renderer: CliRenderer): PostDetailHandle {
       titleAlignment: "left",
       paddingLeft: 1,
       paddingRight: 1,
-      paddingTop: 1,
-      paddingBottom: 1,
+      paddingTop: 0,
+      paddingBottom: 0,
     });
 
-    const body = new TextRenderable(renderer, {
+    const body = new MarkdownRenderable(renderer, {
       id: nextId("pd-body"),
-      content: post.content,
+      content: cleanMarkdown(post.content),
+      syntaxStyle: postSyntaxStyle,
       fg: theme.fg,
       bg: theme.bg,
-      wrapMode: "word",
+      conceal: true,
+      width: "100%",
     });
     card.add(body);
+
+    if (post.topics && post.topics.length > 0) {
+      const topicsRow = new BoxRenderable(renderer, {
+        id: nextId("pd-topics"),
+        flexDirection: "row",
+        justifyContent: "flex-end",
+        flexShrink: 0,
+        backgroundColor: theme.bg,
+        marginTop: 1,
+      });
+      for (const topic of post.topics) {
+        const chip = new TextRenderable(renderer, {
+          id: nextId("pd-topic"),
+          content: ` ${topic.toUpperCase()} `,
+          fg: theme.chipFg,
+          bg: theme.chipBg,
+          marginLeft: 1,
+        });
+        topicsRow.add(chip);
+      }
+      card.add(topicsRow);
+    }
+
     addChild(card);
     selectableCards.push(card);
     focusedIdx = paneHasFocus ? 0 : -1;
     applyCardBorders();
   }
 
+  const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+  let spinnerTimer: ReturnType<typeof setInterval> | null = null;
+
+  function stopSpinner(): void {
+    if (spinnerTimer) {
+      clearInterval(spinnerTimer);
+      spinnerTimer = null;
+    }
+  }
+
   function setRepliesLoading(loading: boolean): void {
     if (!currentPost) return;
-    // keep body, swap replies section — handled when setReplies is called
+    stopSpinner();
     if (loading) {
+      let frame = 0;
       const loadingText = new TextRenderable(renderer, {
         id: nextId("pd-loading"),
-        content: "\nloading replies…",
+        content: SPINNER_FRAMES[0]!,
         fg: theme.fgMuted,
         bg: theme.bg,
-        marginTop: 1,
       });
       addChild(loadingText);
+      spinnerTimer = setInterval(() => {
+        if (loadingText.isDestroyed) {
+          stopSpinner();
+          return;
+        }
+        frame = (frame + 1) % SPINNER_FRAMES.length;
+        loadingText.content = SPINNER_FRAMES[frame]!;
+      }, 80);
     }
   }
 
   function setReplies(replies: ReplyModel[]): void {
     if (!currentPost) return;
+    stopSpinner();
     // Remove any loading indicator or prior replies — keep only the body (first child)
     if (addedChildren.length > 1) {
       for (let i = addedChildren.length - 1; i >= 1; i--) {
@@ -233,21 +308,8 @@ export function createPostDetail(renderer: CliRenderer): PostDetailHandle {
       borderColor: theme.fgDim,
       title: `REPLIES (${replies.length})`,
       titleAlignment: "center",
-      marginTop: 1,
-      marginBottom: 1,
     });
     addChild(divider);
-
-    if (replies.length === 0) {
-      const none = new TextRenderable(renderer, {
-        id: nextId("pd-noreplies"),
-        content: "no replies",
-        fg: theme.fgMuted,
-        bg: theme.bg,
-      });
-      addChild(none);
-      return;
-    }
 
     for (const reply of replies) {
       const card = buildReplyCard(renderer, reply, nextId);
@@ -276,6 +338,9 @@ export function createPostDetail(renderer: CliRenderer): PostDetailHandle {
     if (selectableCards.length === 0) return;
     setFocusedIdx(focusedIdx - 1);
   }
+  function scrollBy(delta: number): void {
+    scrollBox.scrollBy({ x: 0, y: delta });
+  }
 
   // Initial empty state
   setPost(null);
@@ -290,6 +355,7 @@ export function createPostDetail(renderer: CliRenderer): PostDetailHandle {
     blur,
     focusNext,
     focusPrev,
+    scrollBy,
   };
 }
 
@@ -298,7 +364,7 @@ function buildReplyCard(
   reply: ReplyModel,
   nextId: (prefix: string) => string,
 ): BoxRenderable {
-  const title = `${reply.author.toUpperCase()}  —  ${formatAge(reply.createdAt)}`;
+  const title = ` ${reply.author.toUpperCase()} / ${formatAge(reply.createdAt)} `;
   const card = new BoxRenderable(renderer, {
     id: nextId("reply-card"),
     flexDirection: "column",
@@ -327,12 +393,14 @@ function buildReplyCard(
     card.add(quote);
   }
 
-  const body = new TextRenderable(renderer, {
+  const body = new MarkdownRenderable(renderer, {
     id: nextId("reply-body"),
-    content: reply.content,
+    content: cleanMarkdown(reply.content),
+    syntaxStyle: postSyntaxStyle,
     fg: theme.fg,
     bg: theme.bg,
-    wrapMode: "word",
+    conceal: true,
+    width: "100%",
   });
   card.add(body);
 

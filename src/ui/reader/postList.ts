@@ -14,6 +14,7 @@ export interface PostRow {
   content: string;
   createdAt: Date;
   hasAudio?: boolean;
+  topics?: string[];
 }
 
 export interface PostListHandle {
@@ -35,6 +36,22 @@ function truncate(str: string, max: number): string {
   return str.slice(0, Math.max(0, max - 1)) + "…";
 }
 
+function stripMarkdown(content: string): string {
+  return content
+    .replace(/&nbsp;/g, " ")
+    .replace(/\u00A0/g, " ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/(\*\*|__)(.*?)\1/g, "$2")
+    .replace(/(\*|_)(.*?)\1/g, "$2")
+    .replace(/~~(.*?)~~/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^>\s+/gm, "")
+    .replace(/^[-*+]\s+/gm, "");
+}
+
 function formatAge(d: Date): string {
   const now = Date.now();
   const diff = Math.max(0, now - d.getTime());
@@ -48,11 +65,18 @@ function formatAge(d: Date): string {
   return `${dd}d`;
 }
 
+function firstNonEmptyLine(content: string): string {
+  for (const line of stripMarkdown(content).split(/\r?\n/)) {
+    const trimmed = line.replace(/\s+/g, " ").trim();
+    if (trimmed) return trimmed;
+  }
+  return "";
+}
+
 function rowToLabel(row: PostRow, contentWidth: number): string {
   const user = truncate(`@${row.author}`, USER_COL).padEnd(USER_COL);
   const audioTag = row.hasAudio ? "[AUDIO] " : "";
-  const rawContent = row.content.replace(/\s+/g, " ").trim();
-  const content = audioTag + rawContent;
+  const content = audioTag + firstNonEmptyLine(row.content);
   const contentCell = truncate(content, Math.max(5, contentWidth)).padEnd(Math.max(5, contentWidth));
   const age = formatAge(row.createdAt).padStart(TIME_COL);
   return `${user} ${contentCell} ${age}`;
@@ -126,10 +150,16 @@ export function createPostList(renderer: CliRenderer): PostListHandle {
   const changeListeners = new Set<(row: PostRow | null) => void>();
 
   function computeContentWidth(): number {
-    const termWidth = renderer.width;
-    const paneWidth = Math.floor(termWidth * (widthPct / 100));
-    // paneWidth − 1 right border − 2 horizontal padding − 2 select indicator − 1 scrollbar
-    const usable = paneWidth - 6;
+    const measured = select.width;
+    let usable: number;
+    if (measured && measured > 0) {
+      // Select internal: 2-char selection indicator + 1-char scrollbar
+      usable = measured - 3;
+    } else {
+      // Fallback before first layout
+      const paneWidth = Math.floor(renderer.width * (widthPct / 100));
+      usable = paneWidth - 10;
+    }
     return Math.max(10, usable - USER_COL - TIME_COL - 2);
   }
 
@@ -183,14 +213,26 @@ export function createPostList(renderer: CliRenderer): PostListHandle {
     select.options = buildOptions();
   }
 
+  function focus(): void {
+    select.selectedBackgroundColor = theme.accent;
+    select.selectedTextColor = theme.accentFg;
+    select.focus();
+  }
+
+  function blur(): void {
+    select.selectedBackgroundColor = theme.accentDim;
+    select.selectedTextColor = theme.fgDim;
+    select.blur();
+  }
+
   return {
     root,
     select,
     setRows,
     getSelected,
     onSelectionChange,
-    focus: () => select.focus(),
-    blur: () => select.blur(),
+    focus,
+    blur,
     setWidthPct,
   };
 }

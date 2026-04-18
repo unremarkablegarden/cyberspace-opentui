@@ -2,11 +2,20 @@ import { createCliRenderer, type CliRenderer } from "@opentui/core";
 import { mountShell, type AppShell } from "./app.ts";
 import { createLoginScreen } from "./ui/modals/login.ts";
 import { createReaderView, type ReaderViewHandle } from "./ui/reader/readerView.ts";
+import { createProfileView, type ProfileViewHandle } from "./ui/profile/profileView.ts";
 import { loadAuth } from "./auth/store.ts";
 import { getSession, hydrateSession, setTokens, clearSession } from "./auth/session.ts";
-import { refreshToken } from "./api/endpoints.ts";
-import { listPosts, getReplies } from "./api/endpoints.ts";
-import type { Post } from "./api/types.ts";
+import {
+  getMe,
+  getReplies,
+  getUser,
+  getUserPosts,
+  listPosts,
+  refreshToken,
+} from "./api/endpoints.ts";
+import type { Post, User } from "./api/types.ts";
+
+type Tab = "reader" | "profile";
 
 async function restoreSession(): Promise<boolean> {
   const stored = await loadAuth();
@@ -29,10 +38,11 @@ function postsToRows(posts: Post[]) {
     content: p.content,
     createdAt: p.createdAt,
     hasAudio: p.hasAudioAttachment,
+    topics: p.topics,
   }));
 }
 
-async function wireReader(shell: AppShell, reader: ReaderViewHandle): Promise<void> {
+async function wireReader(reader: ReaderViewHandle): Promise<void> {
   let currentPostId: string | null = null;
   const repliesCache = new Map<string, Awaited<ReturnType<typeof getReplies>>["data"]>();
 
@@ -46,6 +56,7 @@ async function wireReader(shell: AppShell, reader: ReaderViewHandle): Promise<vo
       content: row.content,
       createdAt: row.createdAt,
       repliesCount: 0,
+      topics: row.topics,
     });
 
     const postId = row.id;
@@ -65,7 +76,6 @@ async function wireReader(shell: AppShell, reader: ReaderViewHandle): Promise<vo
       return;
     }
 
-    reader.detail.setReplies([]);
     reader.detail.setRepliesLoading(true);
 
     try {
@@ -129,10 +139,79 @@ if (!restored || !getSession()) {
 }
 
 const reader = createReaderView(renderer);
-shell.setContent(reader.root);
+const profile = createProfileView(renderer);
 
-renderer.keyInput.on("keypress", (key) => {
-  if (key.name === "q") renderer.destroy();
+let currentTab: Tab = "reader";
+let meUser: User | null = null;
+
+function switchTab(next: Tab, tabIdx: number): void {
+  if (currentTab === next) return;
+  currentTab = next;
+  if (next === "reader") {
+    profile.setActive(false);
+    shell.setContent(reader.root);
+    reader.setActive(true);
+  } else {
+    reader.setActive(false);
+    shell.setContent(profile.root);
+    profile.setActive(true);
+  }
+  shell.header.setActiveTab(tabIdx);
+}
+
+async function loadProfile(username: string): Promise<void> {
+  profile.setError(null);
+  profile.setLoading(true);
+  try {
+    const [user, posts] = await Promise.all([
+      getUser(username),
+      getUserPosts(username, { limit: 50 }),
+    ]);
+    profile.setUser(user);
+    profile.setPosts(postsToRows(posts.data));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "failed to load profile";
+    profile.setError(`failed to load @${username}: ${message}`);
+  }
+}
+
+async function loadMe(): Promise<void> {
+  profile.setError(null);
+  profile.setLoading(true);
+  try {
+    if (!meUser) meUser = await getMe();
+    const posts = await getUserPosts(meUser.username, { limit: 50 });
+    profile.setUser(meUser);
+    profile.setPosts(postsToRows(posts.data));
+  } catch (err) {
+    meUser = null;
+    const message = err instanceof Error ? err.message : "failed to load profile";
+    profile.setError(`failed to load your profile: ${message}`);
+  }
+}
+
+shell.setContent(reader.root);
+reader.setActive(true);
+
+reader.onOpenAuthor(async (row) => {
+  switchTab("profile", 1);
+  await loadProfile(row.author);
 });
 
-await wireReader(shell, reader);
+renderer.keyInput.on("keypress", (key) => {
+  if (key.name === "q") {
+    renderer.destroy();
+    process.exit(0);
+  }
+  if (key.ctrl && key.name === "r") {
+    switchTab("reader", 0);
+    return;
+  }
+  if (key.ctrl && key.name === "p") {
+    switchTab("profile", 1);
+    void loadMe();
+    return;
+  }
+});
+
+await wireReader(reader);

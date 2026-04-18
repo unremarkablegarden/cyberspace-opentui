@@ -48,6 +48,25 @@ export interface Reply {
   guildId?: string;
 }
 
+export interface User {
+  userId: string;
+  username: string;
+  displayName?: string;
+  bio?: string;
+  profilePictureUrl?: string;
+  pinnedPostId?: string;
+  websiteUrl?: string;
+  websiteName?: string;
+  locationName?: string;
+  followersCount?: number;
+  followingCount?: number;
+  postsCount?: number;
+  publicPostsCount?: number;
+  createdAt?: Date;
+  lastActiveAt?: Date;
+  updatedAt?: Date;
+}
+
 export interface AuthTokens {
   idToken: string;
   refreshToken: string;

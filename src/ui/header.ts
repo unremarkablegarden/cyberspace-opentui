@@ -7,9 +7,8 @@ export interface HeaderHandle {
 }
 
 const TABS = [
-  { key: "#1", label: "READER" },
-  { key: "#2", label: "FEED" },
-  { key: "#3", label: "PROFILE" },
+  { key: "⌃R", label: "READER" },
+  { key: "⌃P", label: "PROFILE" },
 ];
 
 export function createHeader(renderer: CliRenderer): HeaderHandle {

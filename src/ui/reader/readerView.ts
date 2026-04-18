@@ -19,25 +19,28 @@ export interface ReaderViewHandle {
   focusPane(pane: Pane): void;
   dispose(): void;
   onPostSelected(fn: (row: PostRow | null) => void): () => void;
+  onOpenAuthor(fn: (row: PostRow) => void): () => void;
+  setActive(active: boolean): void;
 }
 
 const LIST_SHORTCUTS: Shortcut[] = [
   { key: "↑↓", label: "NAV" },
   { key: "↔", label: "PANEL" },
+  { key: "U", label: "AUTHOR" },
   { key: "[ ]", label: "RESIZE" },
-  { key: "↵", label: "OPEN" },
   { key: "Q", label: "QUIT" },
 ];
 
 const DETAIL_SHORTCUTS: Shortcut[] = [
   { key: "↑↓", label: "NAV" },
+  { key: "j k", label: "SCROLL" },
   { key: "↔", label: "PANEL" },
   { key: "[ ]", label: "RESIZE" },
   { key: "Q", label: "QUIT" },
 ];
 
 const MIN_LEFT_PCT = 20;
-const MAX_LEFT_PCT = 75;
+const MAX_LEFT_PCT = 80;
 const RESIZE_STEP = 5;
 const DEFAULT_LEFT_PCT = 45;
 
@@ -72,6 +75,7 @@ export function createReaderView(renderer: CliRenderer): ReaderViewHandle {
     flexShrink: 1,
     backgroundColor: theme.bg,
     paddingLeft: 1,
+    paddingRight: 1,
   });
 
   const list = createPostList(renderer);
@@ -84,6 +88,8 @@ export function createReaderView(renderer: CliRenderer): ReaderViewHandle {
   root.add(rightPane);
 
   let activePane: Pane = "list";
+  let active = false;
+  const openAuthorListeners = new Set<(row: PostRow) => void>();
 
   function focusPane(pane: Pane): void {
     activePane = pane;
@@ -111,6 +117,7 @@ export function createReaderView(renderer: CliRenderer): ReaderViewHandle {
   }
 
   const keyHandler = (key: KeyEvent) => {
+    if (!active) return;
     if (key.name === "tab") {
       cyclePane();
       return;
@@ -123,6 +130,13 @@ export function createReaderView(renderer: CliRenderer): ReaderViewHandle {
       setLeftPct(leftPct + RESIZE_STEP);
       return;
     }
+    if (activePane === "list" && (key.sequence === "u" || key.name === "u")) {
+      const row = list.getSelected();
+      if (row) {
+        for (const fn of openAuthorListeners) fn(row);
+      }
+      return;
+    }
     if (activePane === "detail") {
       if (key.name === "up") {
         detail.focusPrev();
@@ -130,6 +144,14 @@ export function createReaderView(renderer: CliRenderer): ReaderViewHandle {
       }
       if (key.name === "down") {
         detail.focusNext();
+        return;
+      }
+      if (key.sequence === "j" || key.name === "j") {
+        detail.scrollBy(1);
+        return;
+      }
+      if (key.sequence === "k" || key.name === "k") {
+        detail.scrollBy(-1);
         return;
       }
     }
@@ -155,6 +177,24 @@ export function createReaderView(renderer: CliRenderer): ReaderViewHandle {
     return list.onSelectionChange(fn);
   }
 
+  function onOpenAuthor(fn: (row: PostRow) => void): () => void {
+    openAuthorListeners.add(fn);
+    return () => openAuthorListeners.delete(fn);
+  }
+
+  function setActive(next: boolean): void {
+    if (active === next) return;
+    active = next;
+    if (active) {
+      // Republish the current pane's shortcuts when the view re-activates.
+      setContext(
+        activePane === "list"
+          ? { id: "reader.list", shortcuts: LIST_SHORTCUTS }
+          : { id: "reader.detail", shortcuts: DETAIL_SHORTCUTS },
+      );
+    }
+  }
+
   function dispose(): void {
     renderer.keyInput.off("keypress", keyHandler);
   }
@@ -170,6 +210,8 @@ export function createReaderView(renderer: CliRenderer): ReaderViewHandle {
     focusPane,
     dispose,
     onPostSelected,
+    onOpenAuthor,
+    setActive,
   };
 }
 
