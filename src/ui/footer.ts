@@ -1,6 +1,7 @@
 import { BoxRenderable, TextRenderable, type CliRenderer } from "@opentui/core";
 import { subscribe, type FocusContext } from "../focus/registry.ts";
 import { theme } from "../theme.ts";
+import pkg from "../../package.json" with { type: "json" };
 
 export interface FooterHandle {
   root: BoxRenderable;
@@ -27,7 +28,7 @@ export function createFooter(renderer: CliRenderer): FooterHandle {
 
   const versionText = new TextRenderable(renderer, {
     id: "footer-version",
-    content: "v0.1",
+    content: `v${pkg.version}`,
     fg: theme.fgMuted,
     bg: theme.barBg,
   });

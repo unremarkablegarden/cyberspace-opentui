@@ -1,5 +1,6 @@
 {
   "name": "cyberspace-opentui",
+  "version": "0.2.0",
   "module": "src/index.tsx",
   "type": "module",
   "private": true,
