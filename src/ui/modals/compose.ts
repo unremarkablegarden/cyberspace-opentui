@@ -161,15 +161,19 @@ export function createComposeScreen(renderer: CliRenderer, opts: ComposeOptions)
     confirming = true;
     setStatus("confirm to post…");
     editor.blur();
-    const confirm = createConfirmDialog(renderer, {
-      title: opts.mode === "entry" ? "POST ENTRY" : "POST REPLY",
-      message: "Are you sure?",
-    });
+    // Mounting the dialog is inside the try: `confirming` routes keys away from
+    // the editor, so a throw before the reset would leave the compose screen
+    // unable to type or submit.
+    let confirm: ReturnType<typeof createConfirmDialog> | undefined;
     let ok = false;
     try {
+      confirm = createConfirmDialog(renderer, {
+        title: opts.mode === "entry" ? "POST ENTRY" : "POST REPLY",
+        message: "Are you sure?",
+      });
       ok = await confirm.done;
     } finally {
-      confirm.dispose();
+      confirm?.dispose();
       confirming = false;
     }
     if (!ok) {

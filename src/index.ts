@@ -317,8 +317,12 @@ async function openCompose(opts: ComposeOptions): Promise<void> {
   reader.setActive(false);
   profile.setActive(false);
 
-  const screen = createComposeScreen(renderer, opts);
+  // Mounting the overlay is inside the try as well: a throw from the factory
+  // would otherwise leave modalOpen set and both views inactive. It is declared
+  // out here so the finally can still dispose it once it exists.
+  let screen: ReturnType<typeof createComposeScreen> | undefined;
   try {
+    screen = createComposeScreen(renderer, opts);
     const result = await screen.done;
     if (result?.mode === "entry") {
       await wiring.refreshFeed();
@@ -330,7 +334,7 @@ async function openCompose(opts: ComposeOptions): Promise<void> {
       }
     }
   } finally {
-    screen.dispose();
+    screen?.dispose();
     if (wasReader) reader.setActive(true);
     else profile.setActive(true);
     modalOpen = false;
@@ -358,37 +362,43 @@ async function deleteItem(item: FocusedDetailItem): Promise<void> {
 
   modalOpen = true;
   reader.setActive(false);
-  const confirm = createConfirmDialog(renderer, {
-    title: item.kind === "post" ? "DELETE ENTRY" : "DELETE REPLY",
-    message: "Are you sure?",
-  });
-  let ok = false;
+  // Everything below runs under a finally, like openCompose: `modalOpen` gates
+  // the global keys and `setActive(false)` mutes the reader, so a throw that
+  // skipped the restore would leave the app permanently deaf to input with no
+  // modal on screen to explain why.
   try {
-    ok = await confirm.done;
-  } finally {
-    confirm.dispose();
-  }
-
-  if (ok) {
-    const loading = createLoadingOverlay(renderer, "Deleting");
+    const confirm = createConfirmDialog(renderer, {
+      title: item.kind === "post" ? "DELETE ENTRY" : "DELETE REPLY",
+      message: "Are you sure?",
+    });
+    let ok = false;
     try {
-      if (item.kind === "post") {
-        await deletePost(item.id);
-        await wiring.refreshFeed();
-      } else {
-        await deleteReply(item.id);
-        const pid = wiring.currentPostId();
-        if (pid) await wiring.refreshReplies(pid);
-      }
-    } catch {
-      // best-effort; a failed delete leaves the item in place
+      ok = await confirm.done;
     } finally {
-      loading.dispose();
+      confirm.dispose();
     }
-  }
 
-  reader.setActive(true);
-  modalOpen = false;
+    if (ok) {
+      const loading = createLoadingOverlay(renderer, "Deleting");
+      try {
+        if (item.kind === "post") {
+          await deletePost(item.id);
+          await wiring.refreshFeed();
+        } else {
+          await deleteReply(item.id);
+          const pid = wiring.currentPostId();
+          if (pid) await wiring.refreshReplies(pid);
+        }
+      } catch {
+        // best-effort; a failed delete leaves the item in place
+      } finally {
+        loading.dispose();
+      }
+    }
+  } finally {
+    reader.setActive(true);
+    modalOpen = false;
+  }
 }
 
 reader.onDelete((item) => {
