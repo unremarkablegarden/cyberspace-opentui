@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **`curl … | sh` installer** (`install.sh`) with `install` (default), `update`/`upgrade`, `remove`/`uninstall`, and `help`. Pass the command after `sh -s --` when piping. Since there is no build step, it installs the source to `~/.local/share/cyberspace-opentui` and writes a `cyberspace` launcher to `~/.local/bin` that runs it with Bun; Bun itself is installed if missing. Uses git when available and falls back to a source tarball otherwise, so it works on images without git. `remove` keeps `~/.config/cyberspace-tui` unless given `--purge`, and neither removal touches a launcher or directory the installer didn't create. Paths, command name, ref, and source repo are overridable via `CYBERSPACE_*` environment variables.
+
 ## v0.3
 
 The read-only client becomes read/write: compose, reply, and delete — plus freshness

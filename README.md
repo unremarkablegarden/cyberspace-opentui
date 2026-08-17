@@ -17,13 +17,52 @@ A two-pane, Norton-Commander-inspired reader built on [OpenTUI](https://github.c
 
 Bookmarks and inline image rendering are not implemented yet.
 
+## Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/unremarkablegarden/cyberspace-opentui/main/install.sh | sh
+```
+
+Then run it with `cyberspace`.
+
+The installer puts the source in `~/.local/share/cyberspace-opentui` and a `cyberspace` launcher in `~/.local/bin`. There's no build step — the launcher runs the source with Bun — so Bun is installed for you if you don't already have it. Nothing needs root.
+
+### Update and remove
+
+The same script takes a command; through a pipe, pass it after `sh -s --`:
+
+```bash
+# update to the latest main
+curl -fsSL https://raw.githubusercontent.com/unremarkablegarden/cyberspace-opentui/main/install.sh | sh -s -- update
+
+# uninstall
+curl -fsSL https://raw.githubusercontent.com/unremarkablegarden/cyberspace-opentui/main/install.sh | sh -s -- remove
+```
+
+`update` and `upgrade` are the same command, as are `remove` and `uninstall`. `sh -s -- help` lists everything.
+
+`remove` deletes the launcher and the installed source but keeps `~/.config/cyberspace-tui`, so reinstalling doesn't make you sign in again. Pass `--purge` (`sh -s -- remove --purge`) to delete that too.
+
+Both commands are safe to run more than once, and neither will touch a `cyberspace` on your PATH that this installer didn't write.
+
+### Installer options
+
+| Variable | Default | What it does |
+|----------|---------|--------------|
+| `CYBERSPACE_INSTALL_DIR` | `~/.local/bin` | where the launcher goes |
+| `CYBERSPACE_SRC_DIR` | `~/.local/share/cyberspace-opentui` | where the source goes |
+| `CYBERSPACE_CMD` | `cyberspace` | the command name to install as |
+| `CYBERSPACE_REF` | `main` | branch or tag to install |
+| `CYBERSPACE_REPO` | `unremarkablegarden/cyberspace-opentui` | fork to install from |
+| `CYBERSPACE_NO_BUN_INSTALL` | unset | set it to fail instead of installing Bun |
+
 ## Dependencies
 
 - Bun
 - Typescript
 - OpenTUI
 
-## Run
+## Run from source
 
 ```bash
 bun install
@@ -54,6 +93,8 @@ Keys:
 | Token storage | `~/.config/cyberspace-tui/auth.json` (0600) |
 | Settings (reader column width) | `~/.config/cyberspace-tui/settings.json` |
 | Theme | `src/theme.ts` |
+| Installed source (installer) | `~/.local/share/cyberspace-opentui` |
+| Launcher (installer) | `~/.local/bin/cyberspace` |
 
 Sign out by deleting the auth file:
 

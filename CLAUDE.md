@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `bun install` — install dependencies
 - `bun dev` — run the TUI in watch mode (runs `src/index.ts` via Bun with `--watch`)
+- `sh install.sh [install|update|remove|help]` — the end-user installer (see below)
 
 There is no build, lint, or test script configured. TypeScript is used purely for type-checking in editors (`noEmit: true`); run `bunx tsc --noEmit` if you need to verify types.
 
@@ -112,9 +113,24 @@ OpenTUI is young and its API changes often — do not rely on training-data reca
 
 There is no dedicated OpenTUI MCP server; the three sources above are the full set.
 
+## Installer (`install.sh`)
+
+POSIX `sh`, served raw from GitHub and run as `curl … | sh`. Subcommands: `install` (default), `update`/`upgrade`, `remove`/`uninstall`, `help` — through a pipe they come after `sh -s --`.
+
+Because there is **no build step and no published release**, an install is not a binary copy: it puts the source in `~/.local/share/cyberspace-opentui`, runs `bun install` there, and writes a launcher to `~/.local/bin/cyberspace` that `exec`s `bun run $SRC/src/index.ts "$@"`. Bun is resolved inside the launcher at run time, not baked in at install time, so upgrading or moving Bun doesn't break it. If you ever add a real build or publish release binaries, this is the part to revisit.
+
+Things that are load-bearing, not incidental:
+
+- **Everything is inside `main()`**, called on the last line — a truncated download can't execute a half-read script.
+- **Removal guards.** Every generated launcher carries the `# cyberspace-opentui-launcher` marker line and `remove` refuses to delete a file without it; `rm -rf` on the source dir only happens when `package.json` names this project. `CYBERSPACE_SRC_DIR`/`CYBERSPACE_INSTALL_DIR` are user input, so neither can be pointed at an unrelated path to delete it. Don't drop these.
+- **Config survives uninstall** (`~/.config/cyberspace-tui` holds the session tokens) unless `remove --purge`.
+- **git is optional** — `fetch_source` falls back to a codeload tarball. The tarball is downloaded, extracted, and validated *before* the existing install is deleted, so a failed update leaves the working copy intact.
+- The install dir defaults to a **user** directory, not `/usr/local/bin`: the launcher points into `$HOME`, so a system-wide shim would only work for the installing user.
+
 ## Repository layout
 
 - `src/` — application source (see **Module layout** above).
+- `install.sh` — the `curl | sh` installer (see above).
 - `references/` — read-only reference checkouts of sibling Cyberspace projects. These are **not** part of this project's build. Use them to mirror domain models, endpoints, terminology, and UX patterns. Do not import from them and do not modify them.
 - `examples/opentui-examples` — prebuilt binary of the OpenTUI demo gallery; run it directly to explore widgets visually.
 - `examples/opentui-examples-src/` — the **source** for those demos, sparse-checked-out from `anomalyco/opentui` at `packages/core/src/examples` (see `index.ts` for the demo registry). Read these when you need concrete, working reference code for any OpenTUI feature (input, scrollbox, select, markdown, shaders, mouse, z-index, focus, etc.). Not part of this project's build — do not import from it; copy or adapt patterns into `src/` as needed.
